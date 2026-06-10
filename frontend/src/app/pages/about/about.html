@@ -2,7 +2,7 @@
   <h1 class="text-3xl font-bold text-ttb-navy m-0">About</h1>
 
   <p>
-    ColaCheck is a small tool that helps beverage alcohol producers and importers
+    ColaReady is a small tool that helps beverage alcohol producers and importers
     catch label problems <em>before</em> submitting a Certificate of Label Approval (COLA)
     application to the Alcohol and Tobacco Tax and Trade Bureau (TTB).
   </p>
@@ -17,14 +17,19 @@
 
   <h2 class="text-xl font-semibold text-ttb-navy mt-4">How it works</h2>
   <ol class="list-decimal pl-5 space-y-2">
-    <li>Upload a PNG image of your label artwork on the <strong>Verify</strong> page.</li>
-    <li>The image is sent to an AI vision model that reads the printed text.</li>
     <li>
-      Key fields - brand name, class/type, alcohol content, net contents, producer
-      address, country of origin, and the government warning - are extracted and
-      compared against your application data.
+      Enter your application data - brand name, class/type, alcohol content, net contents,
+      producer name and address, and country of origin (if imported) - and upload a PNG of
+      your label artwork on the <strong>Verify</strong> page.
     </li>
-    <li>Any mismatches or fields that need a closer look are highlighted for review.</li>
+    <li>An AI vision model reads the printed text from the label image.</li>
+    <li>
+      Each field is then compared against your application data using fixed TTB labeling
+      rules - for example, alcohol content is checked within the regulatory tolerance, and
+      the Government Warning is checked against the federally mandated wording and
+      formatting, not against application data.
+    </li>
+    <li>You get a field-by-field report marked Match, Mismatch, or Needs Review, which you can print or save as a PDF.</li>
   </ol>
 
   <h2 class="text-xl font-semibold text-ttb-navy mt-4">A note on accuracy</h2>

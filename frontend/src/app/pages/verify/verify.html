@@ -1,33 +1,222 @@
 <main class="flex flex-col items-center gap-6 px-4 py-8">
-  <h1 class="text-3xl font-bold text-ttb-navy m-0">Verify a Label</h1>
-  <p class="text-gray-600 text-center max-w-md -mt-4">
-    Upload a PNG of your label artwork and get an instant AI summary of what it shows.
-  </p>
-
-  <div class="w-full max-w-lg border border-gray-300 rounded-xl p-6 flex flex-col gap-4">
-    <label for="label-image" class="font-medium">Upload a label image (PNG)</label>
-    <input
-      id="label-image"
-      type="file"
-      accept="image/png"
-      (change)="onFileSelected($event)"
-      class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-ttb-navy file:text-white hover:file:bg-ttb-navy/90"
-    />
-
-    @if (error()) {
-      <p class="text-red-600 m-0">{{ error() }}</p>
-    }
-
-    @if (previewUrl()) {
-      <img class="max-w-full max-h-72 rounded-lg self-center" [src]="previewUrl()" [alt]="fileName() ?? 'Selected label'" />
-    }
-
-    @if (loading()) {
-      <p class="m-0">Analyzing image…</p>
-    }
-
-    @if (description()) {
-      <div class="bg-gray-100 rounded-lg p-4 whitespace-pre-wrap">{{ description() }}</div>
-    }
+  <div class="print:hidden flex flex-col items-center gap-2 text-center">
+    <h1 class="text-3xl font-bold text-ttb-navy m-0">Verify a Label</h1>
+    <p class="text-gray-600 max-w-xl m-0">
+      Enter the values from your COLA application, upload a photo of your label artwork, and
+      get an instant field-by-field check before you submit.
+    </p>
   </div>
+
+  <form
+    class="print:hidden w-full max-w-2xl border border-gray-300 rounded-xl p-6 flex flex-col gap-5"
+    (ngSubmit)="runVerification()"
+  >
+    <div>
+      <h2 class="text-lg font-semibold text-ttb-navy mt-0 mb-1">Application Data</h2>
+      <p class="text-sm text-gray-500 mt-0 mb-4">
+        Enter the values exactly as they appear on your COLA application.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label for="category" class="text-sm font-medium">Product Category</label>
+          <select
+            id="category"
+            name="category"
+            [(ngModel)]="applicationData.category"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+          >
+            @for (entry of categoryLabels | keyvalue; track entry.key) {
+              <option [value]="entry.key">{{ entry.value }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="brandName" class="text-sm font-medium">Brand Name</label>
+          <input
+            id="brandName"
+            name="brandName"
+            type="text"
+            [(ngModel)]="applicationData.brandName"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="classType" class="text-sm font-medium">Class/Type Designation</label>
+          <input
+            id="classType"
+            name="classType"
+            type="text"
+            placeholder="e.g. Kentucky Straight Bourbon Whiskey"
+            [(ngModel)]="applicationData.classType"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="alcoholContent" class="text-sm font-medium">Alcohol Content</label>
+          <input
+            id="alcoholContent"
+            name="alcoholContent"
+            type="text"
+            placeholder="e.g. 45% Alc./Vol. (90 Proof)"
+            [(ngModel)]="applicationData.alcoholContent"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="netContents" class="text-sm font-medium">Net Contents</label>
+          <input
+            id="netContents"
+            name="netContents"
+            type="text"
+            placeholder="e.g. 750 mL"
+            [(ngModel)]="applicationData.netContents"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label for="producerNameAndAddress" class="text-sm font-medium">Producer Name &amp; Address</label>
+          <textarea
+            id="producerNameAndAddress"
+            name="producerNameAndAddress"
+            rows="2"
+            placeholder="e.g. Distilled and Bottled by Old Tom Distillery, Bardstown, KY"
+            [(ngModel)]="applicationData.producerNameAndAddress"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm resize-y"
+          ></textarea>
+        </div>
+
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label for="countryOfOrigin" class="text-sm font-medium">
+            Country of Origin <span class="text-gray-400 font-normal">(imports only)</span>
+          </label>
+          <input
+            id="countryOfOrigin"
+            name="countryOfOrigin"
+            type="text"
+            placeholder="e.g. Product of France - leave blank if not an import"
+            [(ngModel)]="applicationData.countryOfOrigin"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <p class="text-xs text-gray-400 mt-3 mb-0">
+        The Government Warning statement is checked automatically against the federally
+        mandated wording and isn't part of your application data.
+      </p>
+    </div>
+
+    <div class="border-t border-gray-200 pt-5 flex flex-col gap-4">
+      <h2 class="text-lg font-semibold text-ttb-navy m-0">Label Artwork</h2>
+
+      <div class="flex flex-col gap-2">
+        <label for="front-label-image" class="font-medium text-sm">Front (Brand) Label (PNG)</label>
+        <input
+          id="front-label-image"
+          type="file"
+          accept="image/png"
+          (change)="onFrontFileSelected($event)"
+          class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-ttb-navy file:text-white hover:file:bg-ttb-navy/90"
+        />
+        @if (frontPreviewUrl()) {
+          <img class="max-w-full max-h-72 rounded-lg self-center" [src]="frontPreviewUrl()" [alt]="frontFileName() ?? 'Selected front label'" />
+        }
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="back-label-image" class="font-medium text-sm">
+          Back Label (PNG) <span class="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <input
+          id="back-label-image"
+          type="file"
+          accept="image/png"
+          (change)="onBackFileSelected($event)"
+          class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-ttb-navy file:text-white hover:file:bg-ttb-navy/90"
+        />
+        @if (backPreviewUrl()) {
+          <img class="max-w-full max-h-72 rounded-lg self-center" [src]="backPreviewUrl()" [alt]="backFileName() ?? 'Selected back label'" />
+        }
+      </div>
+
+      @if (error()) {
+        <p class="text-red-600 m-0 text-sm">{{ error() }}</p>
+      }
+
+      <button
+        type="submit"
+        [disabled]="loading()"
+        class="rounded-md bg-ttb-navy text-white font-semibold px-4 py-2 text-sm hover:bg-ttb-navy/90 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        @if (loading()) {
+          Checking label…
+        } @else {
+          Run Verification
+        }
+      </button>
+    </div>
+  </form>
+
+  @if (report(); as result) {
+    <section class="w-full max-w-2xl border border-gray-300 rounded-xl p-6 flex flex-col gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-ttb-navy m-0">Verification Report</h2>
+          @if (frontFileName()) {
+            <p class="text-xs text-gray-400 m-0">{{ frontFileName() }}</p>
+          }
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="inline-block rounded-full px-3 py-1 text-sm font-semibold" [class]="statusClasses(result.overallStatus)">
+            Overall: {{ statusLabel(result.overallStatus) }}
+          </span>
+          <button
+            type="button"
+            (click)="print()"
+            class="print:hidden rounded-md border border-ttb-navy text-ttb-navy font-semibold px-3 py-1.5 text-sm hover:bg-ttb-navy/5"
+          >
+            Print / Save as PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col divide-y divide-gray-200">
+        @for (field of result.results; track field.field) {
+          <div class="py-3 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="text-sm font-semibold m-0">{{ fieldLabels[field.field] }}</h3>
+              <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold" [class]="statusClasses(field.status)">
+                {{ statusLabel(field.status) }}
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+              <div>
+                <p class="text-xs uppercase tracking-wide text-gray-400 m-0">On Application</p>
+                <p class="m-0 break-words">{{ field.applicationValue || '—' }}</p>
+              </div>
+              <div>
+                <p class="text-xs uppercase tracking-wide text-gray-400 m-0">On Label</p>
+                <p class="m-0 break-words">{{ field.extractedValue || 'Not found' }}</p>
+              </div>
+            </div>
+
+            @if (field.issues) {
+              <ul class="text-xs text-red-700 list-disc pl-5 m-0">
+                @for (issue of field.issues; track issue) {
+                  <li>{{ issue }}</li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
 </main>
