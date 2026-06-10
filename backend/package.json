@@ -8,6 +8,7 @@
     "build": "sam build",
     "start": "sam build && sam local start-api --port 3000 --env-vars env.local.json",
     "test": "vitest run --passWithNoTests",
+    "test:ci": "vitest run --passWithNoTests --coverage",
     "deploy": "sam deploy --guided"
   },
   "prettier": {
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.160",
     "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^4.1.8",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   }

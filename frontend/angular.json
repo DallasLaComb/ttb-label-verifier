@@ -79,7 +79,22 @@
           "defaultConfiguration": "local"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "tsconfig.spec.json"
+          },
+          "configurations": {
+            "ci": {
+              "watch": false,
+              "coverage": true,
+              "coverageReporters": ["lcov", "text"],
+              "coverageExclude": [
+                "src/environments/**",
+                "src/main.ts",
+                "**/*.spec.ts"
+              ]
+            }
+          }
         }
       }
     }
