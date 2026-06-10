@@ -1,79 +1,9 @@
-<style>
-  :host {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-      sans-serif;
-    display: block;
-    min-height: 100dvh;
-    box-sizing: border-box;
-  }
+<div class="flex flex-col min-h-dvh">
+  <app-navbar />
 
-  main {
-    width: 100%;
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 2rem 1rem;
-    box-sizing: inherit;
-    gap: 1.5rem;
-  }
-
-  h1 {
-    font-size: 1.75rem;
-    margin: 0;
-  }
-
-  .upload-card {
-    width: 100%;
-    max-width: 480px;
-    border: 1px solid #d0d5dd;
-    border-radius: 0.75rem;
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .preview {
-    max-width: 100%;
-    max-height: 300px;
-    border-radius: 0.5rem;
-    align-self: center;
-  }
-
-  .error {
-    color: #b42318;
-  }
-
-  .result {
-    background: #f2f4f7;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    white-space: pre-wrap;
-  }
-</style>
-
-<main>
-  <h1>TTB Label Verifier</h1>
-
-  <div class="upload-card">
-    <label for="label-image">Upload a label image (PNG)</label>
-    <input id="label-image" type="file" accept="image/png" (change)="onFileSelected($event)" />
-
-    @if (error()) {
-      <p class="error">{{ error() }}</p>
-    }
-
-    @if (previewUrl()) {
-      <img class="preview" [src]="previewUrl()" [alt]="fileName() ?? 'Selected label'" />
-    }
-
-    @if (loading()) {
-      <p>Analyzing image…</p>
-    }
-
-    @if (description()) {
-      <div class="result">{{ description() }}</div>
-    }
+  <div class="flex-1">
+    <router-outlet />
   </div>
-</main>
+
+  <app-footer />
+</div>

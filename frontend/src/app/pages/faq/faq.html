@@ -1,0 +1,12 @@
+<main class="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-4">
+  <h1 class="text-3xl font-bold text-ttb-navy m-0">Frequently Asked Questions</h1>
+
+  <div class="flex flex-col gap-6 mt-2">
+    @for (entry of entries; track entry.question) {
+      <div>
+        <h2 class="text-lg font-semibold text-ttb-navy m-0 mb-1">{{ entry.question }}</h2>
+        <p class="m-0 text-gray-700">{{ entry.answer }}</p>
+      </div>
+    }
+  </div>
+</main>

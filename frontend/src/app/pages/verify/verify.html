@@ -1,0 +1,33 @@
+<main class="flex flex-col items-center gap-6 px-4 py-8">
+  <h1 class="text-3xl font-bold text-ttb-navy m-0">Verify a Label</h1>
+  <p class="text-gray-600 text-center max-w-md -mt-4">
+    Upload a PNG of your label artwork and get an instant AI summary of what it shows.
+  </p>
+
+  <div class="w-full max-w-lg border border-gray-300 rounded-xl p-6 flex flex-col gap-4">
+    <label for="label-image" class="font-medium">Upload a label image (PNG)</label>
+    <input
+      id="label-image"
+      type="file"
+      accept="image/png"
+      (change)="onFileSelected($event)"
+      class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-ttb-navy file:text-white hover:file:bg-ttb-navy/90"
+    />
+
+    @if (error()) {
+      <p class="text-red-600 m-0">{{ error() }}</p>
+    }
+
+    @if (previewUrl()) {
+      <img class="max-w-full max-h-72 rounded-lg self-center" [src]="previewUrl()" [alt]="fileName() ?? 'Selected label'" />
+    }
+
+    @if (loading()) {
+      <p class="m-0">Analyzing image…</p>
+    }
+
+    @if (description()) {
+      <div class="bg-gray-100 rounded-lg p-4 whitespace-pre-wrap">{{ description() }}</div>
+    }
+  </div>
+</main>

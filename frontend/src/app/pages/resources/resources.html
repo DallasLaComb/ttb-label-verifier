@@ -1,0 +1,17 @@
+<main class="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-4">
+  <h1 class="text-3xl font-bold text-ttb-navy m-0">Resources</h1>
+  <p class="text-gray-700">
+    Official TTB resources for beverage alcohol labeling and COLA applications.
+  </p>
+
+  <ul class="list-none p-0 m-0 flex flex-col gap-4">
+    @for (link of links; track link.url) {
+      <li class="border border-gray-200 rounded-lg p-4">
+        <a [href]="link.url" target="_blank" rel="noopener" class="font-semibold text-ttb-navy no-underline hover:text-ttb-gold">
+          {{ link.title }}
+        </a>
+        <p class="m-0 mt-1 text-sm text-gray-600">{{ link.description }}</p>
+      </li>
+    }
+  </ul>
+</main>
