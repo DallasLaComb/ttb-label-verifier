@@ -65,7 +65,7 @@
     }
 
     @if (previewUrl()) {
-      <img class="preview" [src]="previewUrl()" [alt]="fileName() ?? 'Selected label image'" />
+      <img class="preview" [src]="previewUrl()" [alt]="fileName() ?? 'Selected label'" />
     }
 
     @if (loading()) {
