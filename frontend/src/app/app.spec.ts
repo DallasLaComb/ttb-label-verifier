@@ -26,7 +26,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('nav')?.textContent).toContain('TTB Label Verifier');
+    expect(compiled.querySelector('nav')?.textContent).toContain('ColaCheck');
     expect(compiled.querySelector('h1')?.textContent).toContain('Verify a Label');
   });
 });

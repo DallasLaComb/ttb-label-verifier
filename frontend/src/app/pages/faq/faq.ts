@@ -30,7 +30,7 @@ export class Faq {
     {
       question: 'Is this an official TTB tool?',
       answer:
-        'No. TTB Label Verifier is an independent helper and is not affiliated with or endorsed by the Alcohol and Tobacco Tax and Trade Bureau. It does not submit anything to the TTB on your behalf.',
+        'No. ColaCheck is an independent helper and is not affiliated with, endorsed by, or sponsored by the Alcohol and Tobacco Tax and Trade Bureau (TTB) or the U.S. Department of the Treasury. It does not submit anything to the TTB on your behalf.',
     },
     {
       question: 'Is my label image stored?',
