@@ -32,7 +32,7 @@
       "Action": [
         "s3:CreateBucket",
         "s3:DeleteBucket",
-        "s3:PutBucketEncryption",
+        "s3:PutEncryptionConfiguration",
         "s3:GetEncryptionConfiguration",
         "s3:PutBucketPublicAccessBlock",
         "s3:GetBucketPublicAccessBlock",
