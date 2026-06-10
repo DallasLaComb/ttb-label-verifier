@@ -1,11 +1,11 @@
-# Runs type checks, unit tests, and builds for the frontend and backend on
-# every push and pull request. Must pass before merging to main - the
-# Deploy workflow runs separately on push to main.
+# Runs type checks, unit tests, security scans, and builds for the frontend
+# and backend. Builds frontend and SAM artifacts and uploads them so the
+# Deploy workflow (push to main) can deploy the exact build that passed CI,
+# without rebuilding.
 name: CI
 
 on:
   push:
-    branches-ignore: [main]
   pull_request:
     branches: [main]
 
@@ -43,6 +43,13 @@ jobs:
       - name: Build (production)
         run: npm run build
         working-directory: frontend
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/frontend/browser/
+          retention-days: 7
 
   backend:
     name: Backend
@@ -82,6 +89,37 @@ jobs:
         run: sam build
         working-directory: backend
 
+      - name: Upload SAM build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sam-build
+          path: backend/.aws-sam/build/
+          retention-days: 7
+
+  # Scans TypeScript/JavaScript for security vulnerabilities and code quality
+  # issues. Results appear in the GitHub Security tab under Code Scanning.
+  codeql:
+    name: CodeQL security scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+
   infra:
     name: Infra checks
     runs-on: ubuntu-latest
@@ -95,3 +133,14 @@ jobs:
 
       - name: Lint CloudFormation templates
         run: cfn-lint backend/template.yaml
+
+      # Scans the SAM template for security misconfigurations (open routes,
+      # overly permissive IAM policies, missing encryption, etc.). soft_fail
+      # keeps this non-blocking so findings can be reviewed before enforcing.
+      - name: Checkov IaC security scan
+        uses: bridgecrewio/checkov-action@dfb51aed1b783289b0d3f255028e7a88d5e8caa1 # v12
+        with:
+          file: backend/template.yaml
+          framework: cloudformation
+          quiet: true
+          soft_fail: true

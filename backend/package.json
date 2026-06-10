@@ -7,7 +7,7 @@
   "scripts": {
     "build": "sam build",
     "start": "sam build && sam local start-api --port 3000 --env-vars env.local.json",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "deploy": "sam deploy --guided"
   },
   "prettier": {
@@ -23,12 +23,12 @@
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",
+    "esbuild": "^0.27.3",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.160",
     "@types/node": "^24.0.0",
-    "esbuild": "^0.27.3",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   }

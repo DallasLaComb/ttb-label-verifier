@@ -61,13 +61,21 @@ A [Bruno](https://www.usebruno.com/) collection for the backend API lives in
 `main` (deployed API) environments. Open the `backend/bruno/` folder in the
 Bruno app to try the `/health` and `/verify` requests.
 
-## Deployment
+## CI/CD
 
-The app deploys to a single AWS environment (account `737780202102`, region
-`us-east-1`) via GitHub Actions on push to `main`. One CloudFormation stack
-(`backend/template.yaml`) holds the API Gateway, Lambdas, and the S3/CloudFront
-frontend hosting. See [.github/iam/setup-guide.md](.github/iam/setup-guide.md)
-for one-time OIDC/IAM setup.
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push
+and on pull requests to `main`: type checks, unit tests, `npm audit`, a
+CodeQL scan, `cfn-lint` + a soft-fail Checkov scan of the SAM template, and
+builds the frontend and SAM application, uploading both as artifacts.
+
+Deploy ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)) runs on
+push to `main`: it waits for CI to succeed on that commit, downloads the
+frontend and SAM build artifacts CI produced (no rebuilding), and deploys
+those exact builds to a single AWS environment (account `737780202102`,
+region `us-east-1`). One CloudFormation stack (`backend/template.yaml`) holds
+the API Gateway, Lambdas, and the S3/CloudFront frontend hosting. See
+[.github/iam/setup-guide.md](.github/iam/setup-guide.md) for one-time
+OIDC/IAM setup.
 
 ## Project Board
 
