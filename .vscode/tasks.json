@@ -38,7 +38,7 @@
     {
       "label": "Backend: Start Dev Server",
       "type": "shell",
-      "command": "open -a Docker && echo 'Waiting for Docker...' && until docker info > /dev/null 2>&1; do sleep 1; done && echo 'Docker ready.' && npm start",
+      "command": "open -a Docker && echo 'Waiting for Docker...' && until docker info > /dev/null 2>&1; do sleep 1; done && echo 'Docker ready.' && grep -v '^#' \"${workspaceFolder}/.env\" | grep '=' | jq -Rn '{Parameters: ([inputs | select(length>0) | split(\"=\") | {(.[0]): (.[1:] | join(\"=\"))}] | add // {})}' > env.local.json && npm start",
       "options": {
         "cwd": "${workspaceFolder}/backend"
       },

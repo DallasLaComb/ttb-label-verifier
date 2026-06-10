@@ -1,0 +1,32 @@
+meta {
+  name: Verify Label
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/verify
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "applicationData": {
+      "brandName": "OLD TOM DISTILLERY",
+      "classType": "Kentucky Straight Bourbon Whiskey",
+      "alcoholContent": "45% Alc./Vol. (90 Proof)",
+      "netContents": "750 mL",
+      "producerNameAndAddress": "Distilled and Bottled by Old Tom Distillery, 123 Barrel Run Road, Bardstown, KY 40004",
+      "countryOfOrigin": "Product of USA",
+      "governmentWarning": "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+    },
+    "imageBase64": "data:image/png;base64,REPLACE_WITH_BASE64_IMAGE_DATA"
+  }
+}
+
+docs {
+  Replace `imageBase64` with a real `data:image/<type>;base64,...` data URL of
+  a label image (e.g. one of the AI-generated sample labels). Requires
+  AI_API_KEY to be set in the running backend (see backend/.env).
+}

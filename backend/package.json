@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "build": "sam build",
-    "start": "node scripts/generate-env.mjs && sam build && sam local start-api --port 3000 --env-vars env.local.json",
+    "start": "sam build && sam local start-api --port 3000 --env-vars env.local.json",
     "test": "vitest run",
     "deploy": "sam deploy --guided"
   },

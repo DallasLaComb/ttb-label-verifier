@@ -7,6 +7,10 @@ Parameters:
     Type: CommaDelimitedList
     Default: 'http://localhost:4200'
     Description: 'Comma-separated frontend origins for CORS'
+  FrontendBucketName:
+    Type: String
+    Default: ''
+    Description: 'Globally-unique S3 bucket name for frontend assets. Leave empty for local-only (sam local) usage.'
   LambdaArchitecture:
     Type: String
     Default: arm64
@@ -26,6 +30,9 @@ Parameters:
     Default: ''
     NoEcho: true
     Description: 'API key for the AI vision provider (set via env.local.json locally, or Secrets Manager in deploy)'
+
+Conditions:
+  HasFrontendBucket: !Not [!Equals [!Ref FrontendBucketName, '']]
 
 Globals:
   Function:
@@ -124,7 +131,126 @@ Resources:
         Target: es2022
         Sourcemap: true
 
+  # ── Frontend hosting (S3 + CloudFront) ──
+  # Only created when FrontendBucketName is set (i.e. for deployed
+  # environments, not `sam local`). Retained on stack updates/deletes so a
+  # template change never tears down the live site or its CDN distribution.
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Condition: HasFrontendBucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref FrontendBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: HasFrontendBucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              ArnLike:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}'
+          - Sid: DenyNonHTTPS
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt FrontendBucket.Arn
+              - !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Condition: HasFrontendBucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      OriginAccessControlConfig:
+        Name: oac-ttb-label-verifier-frontend
+        Description: 'OAC for TTB Label Verifier frontend bucket'
+        SigningProtocol: sigv4
+        SigningBehavior: always
+        OriginAccessControlOriginType: s3
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: HasFrontendBucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: 'TTB Label Verifier frontend'
+        DefaultRootObject: index.html
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: s3-ttb-label-verifier-frontend
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: s3-ttb-label-verifier-frontend
+          ViewerProtocolPolicy: redirect-to-https
+          # AWS managed cache policy: CachingOptimized
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          AllowedMethods:
+            - GET
+            - HEAD
+          Compress: true
+        # SPA routing: return index.html for 403/404 so Angular handles routing
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponsePagePath: /index.html
+            ResponseCode: '200'
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 404
+            ResponsePagePath: /index.html
+            ResponseCode: '200'
+            ErrorCachingMinTTL: 10
+
 Outputs:
   ApiUrl:
     Description: Base URL of the deployed API
     Value: !Sub 'https://${LabelVerifierHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+
+  FrontendBucketName:
+    Condition: HasFrontendBucket
+    Value: !Ref FrontendBucket
+
+  DistributionId:
+    Condition: HasFrontendBucket
+    Value: !Ref FrontendDistribution
+
+  DistributionDomainName:
+    Condition: HasFrontendBucket
+    Value: !GetAtt FrontendDistribution.DomainName

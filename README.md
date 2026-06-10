@@ -21,7 +21,8 @@ AI-powered prototype for verifying alcohol beverage label artwork against COLA a
 
 ```
 frontend/   Angular + Tailwind app
-backend/    AWS SAM project (API Gateway + Lambda)
+backend/    AWS SAM project (API Gateway + Lambda + S3/CloudFront frontend hosting)
+ai/prompts/ Reusable AI prompts (e.g. git commit messages)
 ```
 
 ## Local Development
@@ -52,6 +53,21 @@ cd frontend
 npm install
 npm start   # ng serve on :4200, configured to call http://localhost:3000
 ```
+
+## API Testing (Bruno)
+
+A [Bruno](https://www.usebruno.com/) collection for the backend API lives in
+[backend/bruno/](backend/bruno/), with `local` (http://localhost:3000) and
+`main` (deployed API) environments. Open the `backend/bruno/` folder in the
+Bruno app to try the `/health` and `/verify` requests.
+
+## Deployment
+
+The app deploys to a single AWS environment (account `737780202102`, region
+`us-east-1`) via GitHub Actions on push to `main`. One CloudFormation stack
+(`backend/template.yaml`) holds the API Gateway, Lambdas, and the S3/CloudFront
+frontend hosting. See [.github/iam/setup-guide.md](.github/iam/setup-guide.md)
+for one-time OIDC/IAM setup.
 
 ## Project Board
 

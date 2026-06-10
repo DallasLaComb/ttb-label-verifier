@@ -1,0 +1,154 @@
+# Builds and deploys the full stack (backend + frontend) to the single
+# "main" AWS environment (account 737780202102) on every push to main.
+#
+# One CloudFormation stack (backend/template.yaml) holds everything: API
+# Gateway, Lambdas, and the S3/CloudFront frontend hosting. `sam deploy` is
+# an UpdateStack - it never deletes the CloudFront distribution or S3 bucket
+# (both are DeletionPolicy: Retain) just by redeploying.
+#
+# Deploys twice: the first pass creates/updates everything (CloudFront domain
+# may not be known yet on first run), the second pass sets CORS to the now-
+# known CloudFront domain. On steady-state runs the second pass is a no-op.
+#
+# Prereqs (see .github/iam/setup-guide.md):
+#   - OIDC provider + IAM role configured in AWS account 737780202102
+#
+# Required GitHub environment ("main") variables/secrets:
+#   vars.FRONTEND_BUCKET_NAME — globally-unique S3 bucket name
+#   secrets.AWS_ROLE_ARN       — OIDC role ARN
+#   secrets.AI_API_KEY         — Anthropic API key for the verify Lambda
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to main
+    runs-on: ubuntu-latest
+    environment: main
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # ── Backend (SAM) ──
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@89ddb14d60e682855e3fea4be85b3c56485de310 # v3
+
+      - name: Build SAM application
+        run: sam build
+        working-directory: backend
+
+      - name: Deploy SAM stack (pass 1)
+        run: |
+          sam deploy \
+            --stack-name ttb-label-verifier \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --region us-east-1 \
+            --parameter-overrides \
+              FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }} \
+              AiApiKey=${{ secrets.AI_API_KEY }}
+        working-directory: backend
+
+      - name: Get stack outputs
+        id: stack-outputs
+        run: |
+          OUTPUTS=$(aws cloudformation describe-stacks \
+            --stack-name ttb-label-verifier \
+            --region us-east-1 \
+            --query "Stacks[0].Outputs" \
+            --output json)
+
+          get() { echo "$OUTPUTS" | jq -r --arg k "$1" '.[] | select(.OutputKey==$k) | .OutputValue'; }
+
+          echo "api_url=$(get ApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "bucket_name=$(get FrontendBucketName)" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$(get DistributionId)" >> "$GITHUB_OUTPUT"
+          echo "distribution_domain=$(get DistributionDomainName)" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy SAM stack (pass 2 - set CORS to CloudFront domain)
+        run: |
+          sam deploy \
+            --stack-name ttb-label-verifier \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --region us-east-1 \
+            --parameter-overrides \
+              FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }} \
+              AiApiKey=${{ secrets.AI_API_KEY }} \
+              AllowedOrigins=https://${{ steps.stack-outputs.outputs.distribution_domain }}
+        working-directory: backend
+
+      # ── Frontend ──
+      - name: Setup frontend Node.js
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build Angular app (production)
+        run: npm run build
+        working-directory: frontend
+
+      - name: Replace environment placeholders
+        env:
+          API_BASE_URL: ${{ steps.stack-outputs.outputs.api_url }}
+        run: |
+          find frontend/dist/frontend/browser \( -name "*.html" -o -name "*.js" -o -name "*.txt" \) -type f -exec sed -i \
+            -e "s|__API_BASE_URL__|${API_BASE_URL}|g" \
+            {} +
+
+      - name: Sync frontend to S3
+        run: |
+          aws s3 sync frontend/dist/frontend/browser/ \
+            s3://${{ steps.stack-outputs.outputs.bucket_name }}/ \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.stack-outputs.outputs.distribution_id }} \
+            --paths "/*"
+
+      - name: Show deployed URLs
+        run: |
+          echo "Frontend: https://${{ steps.stack-outputs.outputs.distribution_domain }}"
+          echo "API: ${{ steps.stack-outputs.outputs.api_url }}"
