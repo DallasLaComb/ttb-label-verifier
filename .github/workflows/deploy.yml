@@ -124,7 +124,8 @@ jobs:
             --region us-east-1 \
             --parameter-overrides \
               FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }} \
-              AiApiKey=${{ secrets.AI_API_KEY }}
+              AiApiKey=${{ secrets.AI_API_KEY }} \
+              AcmCertificateArn=${{ vars.ACM_CERTIFICATE_ARN }}
         working-directory: backend
 
       - name: Get stack outputs
@@ -156,6 +157,7 @@ jobs:
             --parameter-overrides \
               FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }} \
               AiApiKey=${{ secrets.AI_API_KEY }} \
+              AcmCertificateArn=${{ vars.ACM_CERTIFICATE_ARN }} \
               AllowedOrigins=https://${{ steps.stack-outputs.outputs.distribution_domain }}
         working-directory: backend
 
