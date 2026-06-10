@@ -44,11 +44,25 @@ aws iam update-assume-role-policy \
   --policy-document file://.github/iam/trust-policy.json
 ```
 
-## 4. Attach the Permissions Policy
+## 4. Create the SAM Deployment Bucket
+
+`sam deploy` needs an S3 bucket to stage packaged Lambda artifacts. Create
+this once via the CLI (plain bucket, not CloudFormation) so SAM's
+`--resolve-s3` doesn't create its own `aws-sam-cli-managed-default` stack -
+keeping the account to a single stack (`ttb-label-verifier`):
+
+```bash
+aws s3api create-bucket --bucket ttb-label-verifier-sam-deploys-737780202102 --region us-east-1
+aws s3api put-bucket-encryption --bucket ttb-label-verifier-sam-deploys-737780202102 \
+  --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+aws s3api put-public-access-block --bucket ttb-label-verifier-sam-deploys-737780202102 \
+  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+```
+
+## 5. Attach the Permissions Policy
 
 [`github-actions-policy.json`](github-actions-policy.json) is scoped to
-`ttb-label-verifier-*` resources (plus `aws-sam-cli-managed-*` for SAM's
-deployment bucket) in account 737780202102:
+`ttb-label-verifier-*` resources in account 737780202102:
 
 ```bash
 aws iam put-role-policy \
@@ -60,7 +74,7 @@ aws iam put-role-policy \
 If a deploy fails with an access denied error, check which API call failed
 and add only that action to the policy - it follows least-privilege.
 
-## 5. Configure the GitHub Environment
+## 6. Configure the GitHub Environment
 
 In the GitHub repo: **Settings > Environments > New environment**, name it
 `main` (must match `environment: main` in the workflows and the trust policy
@@ -74,7 +88,7 @@ Add the following:
 | `AI_API_KEY` | Secret | Anthropic API key for the verify Lambda |
 | `FRONTEND_BUCKET_NAME` | Variable | Globally-unique S3 bucket name, e.g. `ttb-label-verifier-frontend-737780202102` |
 
-## 6. Deploy
+## 7. Deploy
 
 Push to `main` (or run **Actions > Deploy > Run workflow**). This builds and
 deploys `backend/template.yaml` - one stack containing the API Gateway,

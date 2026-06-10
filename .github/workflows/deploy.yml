@@ -10,6 +10,11 @@
 # an UpdateStack - it never deletes the CloudFront distribution or S3 bucket
 # (both are DeletionPolicy: Retain) just by redeploying.
 #
+# SAM deployment artifacts (packaged Lambda zips) go to a separate, plain S3
+# bucket (ttb-label-verifier-sam-deploys-737780202102, created once via the
+# AWS CLI - not CloudFormation), so `--resolve-s3` never creates its own
+# "aws-sam-cli-managed-default" stack. This keeps the account to one stack.
+#
 # Deploys twice: the first pass creates/updates everything (CloudFront domain
 # may not be known yet on first run), the second pass sets CORS to the now-
 # known CloudFront domain. On steady-state runs the second pass is a no-op.
@@ -36,6 +41,9 @@ permissions:
   id-token: write
   contents: read
   actions: read
+
+env:
+  SAM_CLI_TELEMETRY: '0'
 
 jobs:
   deploy:
@@ -109,7 +117,7 @@ jobs:
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
             --stack-name ttb-label-verifier \
-            --resolve-s3 \
+            --s3-bucket ttb-label-verifier-sam-deploys-737780202102 \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
@@ -140,7 +148,7 @@ jobs:
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
             --stack-name ttb-label-verifier \
-            --resolve-s3 \
+            --s3-bucket ttb-label-verifier-sam-deploys-737780202102 \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \

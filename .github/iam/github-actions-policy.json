@@ -51,9 +51,7 @@
       ],
       "Resource": [
         "arn:aws:s3:::ttb-label-verifier-*",
-        "arn:aws:s3:::ttb-label-verifier-*/*",
-        "arn:aws:s3:::aws-sam-cli-managed-*",
-        "arn:aws:s3:::aws-sam-cli-managed-*/*"
+        "arn:aws:s3:::ttb-label-verifier-*/*"
       ]
     },
     {

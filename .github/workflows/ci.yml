@@ -12,6 +12,9 @@ on:
 permissions:
   contents: read
 
+env:
+  SAM_CLI_TELEMETRY: '0'
+
 jobs:
   frontend:
     name: Frontend
