@@ -136,44 +136,6 @@ Resources:
         Target: es2022
         Sourcemap: true
 
-  AnalyzeImageFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-AnalyzeImageFunction'
-      RetentionInDays: 7
-
-  AnalyzeImageFunction:
-    Type: AWS::Serverless::Function
-    DependsOn: AnalyzeImageFunctionLogGroup
-    Properties:
-      FunctionName: !Sub '${AWS::StackName}-AnalyzeImageFunction'
-      LoggingConfig:
-        LogGroup: !Sub '/aws/lambda/${AWS::StackName}-AnalyzeImageFunction'
-      CodeUri: .
-      Handler: src/functions/analyze-image/handler.handler
-      Environment:
-        Variables:
-          AI_API_KEY: !Ref AiApiKey
-          AI_API_PROVIDER: !Ref AiApiProvider
-          AI_MODEL: !Ref AiModel
-      Events:
-        PostAnalyzeImage:
-          Type: HttpApi
-          Properties:
-            Path: /analyze-image
-            Method: POST
-            ApiId: !Ref LabelVerifierHttpApi
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints:
-          - src/functions/analyze-image/handler.ts
-        Format: esm
-        OutExtension:
-          - .js=.mjs
-        Target: es2022
-        Sourcemap: true
-
   # ── Frontend hosting (S3 + CloudFront) ──
   # Only created when FrontendBucketName is set (i.e. for deployed
   # environments, not `sam local`). Retained on stack updates/deletes so a

@@ -4,46 +4,54 @@ import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { ok, badRequest, internalError, parseBody } from '../shared/response.js';
 import { parseImageData } from '../shared/image.js';
+import {
+  GOVERNMENT_WARNING_TEXT,
+  checkGovernmentWarning,
+  compareAlcoholContent,
+  compareNetContents,
+  compareTextField,
+  type BeverageCategory,
+  type FieldStatus,
+} from '../shared/label-rules.js';
+
+const BEVERAGE_CATEGORIES: readonly BeverageCategory[] = ['wine', 'distilled_spirits', 'malt_beverage'];
+
+const CATEGORY_DESCRIPTIONS: Record<BeverageCategory, string> = {
+  wine: 'wine',
+  distilled_spirits: 'distilled spirits',
+  malt_beverage: 'malt beverage',
+};
 
 export interface ApplicationData {
+  category: BeverageCategory;
   brandName?: string;
   classType?: string;
   alcoholContent?: string;
   netContents?: string;
   producerNameAndAddress?: string;
   countryOfOrigin?: string;
-  governmentWarning?: string;
 }
 
 export interface VerifyRequest {
   applicationData: ApplicationData;
-  /** Base64-encoded label image (data URL or raw base64) */
-  imageBase64?: string;
+  /** Base64-encoded front (brand) label image (data URL or raw base64) */
+  frontImageBase64?: string;
+  /** Base64-encoded back label image (data URL or raw base64), if provided */
+  backImageBase64?: string;
 }
 
-export type FieldStatus = 'match' | 'mismatch' | 'needs_review';
-
 export interface FieldResult {
-  field: keyof ApplicationData;
+  field: keyof ApplicationData | 'governmentWarning';
   applicationValue: string | undefined;
   extractedValue: string | null;
   status: FieldStatus;
+  issues?: string[];
 }
 
 export interface VerifyResponse {
   overallStatus: FieldStatus;
   results: FieldResult[];
 }
-
-const FIELDS: (keyof ApplicationData)[] = [
-  'brandName',
-  'classType',
-  'alcoholContent',
-  'netContents',
-  'producerNameAndAddress',
-  'countryOfOrigin',
-  'governmentWarning',
-];
 
 const ExtractedLabelSchema = z.object({
   brandName: z.string().nullable(),
@@ -55,9 +63,16 @@ const ExtractedLabelSchema = z.object({
   governmentWarning: z.string().nullable(),
 });
 
-const EXTRACTION_PROMPT = `You are reviewing a photo of an alcohol beverage label for a TTB (Alcohol and Tobacco Tax and Trade Bureau) COLA application review.
+function buildExtractionPrompt(category: BeverageCategory, hasBackImage: boolean): string {
+  const imageDescription = hasBackImage
+    ? 'You are given two images: the first is the front (brand) label, and the second is the back label. Mandatory information may appear on either label.'
+    : 'You are given one image of the front (brand) label.';
 
-Read the label image carefully and extract the following fields exactly as they appear printed on the label. If a field is not present on the label, return null for it.
+  return `You are reviewing photos of a ${CATEGORY_DESCRIPTIONS[category]} label for a TTB (Alcohol and Tobacco Tax and Trade Bureau) COLA application review.
+
+${imageDescription}
+
+Read the label images carefully and extract the following fields exactly as they appear printed on the label(s), preserving the original capitalization and punctuation. If a field is not present on either label, return null for it.
 
 - brandName: The brand name of the product
 - classType: The class/type designation (e.g. "Bourbon Whiskey", "Vodka", "Red Wine")
@@ -65,21 +80,9 @@ Read the label image carefully and extract the following fields exactly as they 
 - netContents: The net contents statement (e.g. "750 mL")
 - producerNameAndAddress: The full producer/bottler name and address statement
 - countryOfOrigin: The country of origin statement, if present (e.g. "Product of France")
-- governmentWarning: The full text of the Surgeon General's government warning statement, if present
+- governmentWarning: The full text of the Surgeon General's government warning statement, if present, exactly as printed (preserve capitalization)
 
 Return only the structured fields - do not add commentary.`;
-
-function normalize(value: string | null | undefined): string {
-  return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function compareField(
-  applicationValue: string | undefined,
-  extractedValue: string | null,
-): FieldStatus {
-  if (extractedValue === null || normalize(extractedValue) === '') return 'needs_review';
-  if (!applicationValue) return 'needs_review';
-  return normalize(applicationValue) === normalize(extractedValue) ? 'match' : 'mismatch';
 }
 
 function overallStatus(results: FieldResult[]): FieldStatus {
@@ -93,15 +96,24 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
   const parsed = parseBody<VerifyRequest>(event.body, origin);
   if (!parsed.ok) return parsed.response;
 
-  const { applicationData, imageBase64 } = parsed.data;
+  const { applicationData, frontImageBase64, backImageBase64 } = parsed.data;
 
-  if (!imageBase64) {
-    return badRequest('imageBase64 is required', origin);
+  if (!applicationData?.category || !BEVERAGE_CATEGORIES.includes(applicationData.category)) {
+    return badRequest('applicationData.category must be one of: wine, distilled_spirits, malt_beverage', origin);
   }
 
-  const image = parseImageData(imageBase64);
-  if (!image) {
-    return badRequest('Unsupported image format - use JPEG, PNG, GIF, or WebP', origin);
+  if (!frontImageBase64) {
+    return badRequest('frontImageBase64 is required', origin);
+  }
+
+  const frontImage = parseImageData(frontImageBase64);
+  if (!frontImage) {
+    return badRequest('Unsupported front image format - use JPEG, PNG, GIF, or WebP', origin);
+  }
+
+  const backImage = backImageBase64 ? parseImageData(backImageBase64) : null;
+  if (backImageBase64 && !backImage) {
+    return badRequest('Unsupported back image format - use JPEG, PNG, GIF, or WebP', origin);
   }
 
   const apiKey = process.env['AI_API_KEY'];
@@ -114,6 +126,10 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
   let extracted: z.infer<typeof ExtractedLabelSchema>;
   try {
     const client = new Anthropic({ apiKey });
+    const imageBlocks = [frontImage, ...(backImage ? [backImage] : [])].map((image) => ({
+      type: 'image' as const,
+      source: { type: 'base64' as const, media_type: image.mediaType, data: image.data },
+    }));
     const aiResponse = await client.beta.messages.parse({
       model,
       max_tokens: 1024,
@@ -121,11 +137,8 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
         {
           role: 'user',
           content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: image.mediaType, data: image.data },
-            },
-            { type: 'text', text: EXTRACTION_PROMPT },
+            ...imageBlocks,
+            { type: 'text', text: buildExtractionPrompt(applicationData.category, backImage !== null) },
           ],
         },
       ],
@@ -141,15 +154,53 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     return internalError('Label extraction failed', origin);
   }
 
-  const results: FieldResult[] = FIELDS.map((field) => {
-    const extractedValue = extracted[field];
-    return {
-      field,
-      applicationValue: applicationData[field],
-      extractedValue,
-      status: compareField(applicationData[field], extractedValue),
-    };
-  });
+  const governmentWarningCheck = checkGovernmentWarning(extracted.governmentWarning);
+
+  const results: FieldResult[] = [
+    {
+      field: 'brandName',
+      applicationValue: applicationData.brandName,
+      extractedValue: extracted.brandName,
+      status: compareTextField(applicationData.brandName, extracted.brandName),
+    },
+    {
+      field: 'classType',
+      applicationValue: applicationData.classType,
+      extractedValue: extracted.classType,
+      status: compareTextField(applicationData.classType, extracted.classType),
+    },
+    {
+      field: 'alcoholContent',
+      applicationValue: applicationData.alcoholContent,
+      extractedValue: extracted.alcoholContent,
+      status: compareAlcoholContent(applicationData.alcoholContent, extracted.alcoholContent, applicationData.category),
+    },
+    {
+      field: 'netContents',
+      applicationValue: applicationData.netContents,
+      extractedValue: extracted.netContents,
+      status: compareNetContents(applicationData.netContents, extracted.netContents),
+    },
+    {
+      field: 'producerNameAndAddress',
+      applicationValue: applicationData.producerNameAndAddress,
+      extractedValue: extracted.producerNameAndAddress,
+      status: compareTextField(applicationData.producerNameAndAddress, extracted.producerNameAndAddress),
+    },
+    {
+      field: 'countryOfOrigin',
+      applicationValue: applicationData.countryOfOrigin,
+      extractedValue: extracted.countryOfOrigin,
+      status: compareTextField(applicationData.countryOfOrigin, extracted.countryOfOrigin),
+    },
+    {
+      field: 'governmentWarning',
+      applicationValue: GOVERNMENT_WARNING_TEXT,
+      extractedValue: extracted.governmentWarning,
+      status: governmentWarningCheck.status,
+      issues: governmentWarningCheck.issues.length > 0 ? governmentWarningCheck.issues : undefined,
+    },
+  ];
 
   const response: VerifyResponse = {
     overallStatus: overallStatus(results),
