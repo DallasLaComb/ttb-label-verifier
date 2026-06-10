@@ -1,0 +1,23 @@
+meta {
+  name: Analyze Image
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/analyze-image
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "imageBase64": "data:image/png;base64,REPLACE_WITH_BASE64_IMAGE_DATA"
+  }
+}
+
+docs {
+  Replace `imageBase64` with a real `data:image/png;base64,...` data URL.
+  Returns a brief description of what the image shows. Requires AI_API_KEY
+  to be set in the running backend (see backend/env.local.json).
+}

@@ -99,6 +99,25 @@ jobs:
           path: backend/.aws-sam/build/
           retention-days: 7
 
+  # Runs the SonarCloud static analysis scan and reports the quality gate
+  # result back on the commit/PR. Requires the SONAR_TOKEN repo secret
+  # (generate from SonarCloud > My Account > Security).
+  sonarcloud:
+    name: SonarCloud scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   # Scans TypeScript/JavaScript for security vulnerabilities and code quality
   # issues. Results appear in the GitHub Security tab under Code Scanning.
   codeql:
