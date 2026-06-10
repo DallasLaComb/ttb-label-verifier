@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: TTB Label Verifier - Backend (API Gateway + Lambda)
+
+Parameters:
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: 'http://localhost:4200'
+    Description: 'Comma-separated frontend origins for CORS'
+  LambdaArchitecture:
+    Type: String
+    Default: arm64
+    AllowedValues:
+      - arm64
+      - x86_64
+  AiApiProvider:
+    Type: String
+    Default: 'anthropic'
+    Description: 'Which AI vision API the verify Lambda calls for label extraction'
+  AiModel:
+    Type: String
+    Default: 'claude-sonnet-4-6'
+    Description: 'Model ID used for label field extraction'
+  AiApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: 'API key for the AI vision provider (set via env.local.json locally, or Secrets Manager in deploy)'
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs24.x
+    Architectures:
+      - !Ref LambdaArchitecture
+    Environment:
+      Variables:
+        ALLOWED_ORIGINS: !Join [',', !Ref AllowedOrigins]
+
+Resources:
+  LabelVerifierHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+
+  HealthFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-HealthFunction'
+      RetentionInDays: 7
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: HealthFunctionLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-HealthFunction'
+      LoggingConfig:
+        LogGroup: !Sub '/aws/lambda/${AWS::StackName}-HealthFunction'
+      CodeUri: .
+      Handler: src/functions/health/handler.handler
+      Events:
+        GetHealth:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: GET
+            ApiId: !Ref LabelVerifierHttpApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/functions/health/handler.ts
+        Format: esm
+        OutExtension:
+          - .js=.mjs
+        Target: es2022
+        Sourcemap: true
+
+  VerifyLabelFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-VerifyLabelFunction'
+      RetentionInDays: 7
+
+  VerifyLabelFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: VerifyLabelFunctionLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-VerifyLabelFunction'
+      LoggingConfig:
+        LogGroup: !Sub '/aws/lambda/${AWS::StackName}-VerifyLabelFunction'
+      CodeUri: .
+      Handler: src/functions/verify-label/handler.handler
+      Environment:
+        Variables:
+          AI_API_KEY: !Ref AiApiKey
+          AI_API_PROVIDER: !Ref AiApiProvider
+          AI_MODEL: !Ref AiModel
+      Events:
+        PostVerify:
+          Type: HttpApi
+          Properties:
+            Path: /verify
+            Method: POST
+            ApiId: !Ref LabelVerifierHttpApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/functions/verify-label/handler.ts
+        Format: esm
+        OutExtension:
+          - .js=.mjs
+        Target: es2022
+        Sourcemap: true
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the deployed API
+    Value: !Sub 'https://${LabelVerifierHttpApi}.execute-api.${AWS::Region}.amazonaws.com'

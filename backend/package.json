@@ -1,0 +1,35 @@
+{
+  "name": "ttb-label-verifier-backend",
+  "version": "0.1.0",
+  "description": "TTB Label Verifier - AWS SAM backend (API Gateway + Lambda)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "sam build",
+    "start": "node scripts/generate-env.mjs && sam build && sam local start-api --port 3000 --env-vars env.local.json",
+    "test": "vitest run",
+    "deploy": "sam deploy --guided"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "sam",
+    "serverless"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.160",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
