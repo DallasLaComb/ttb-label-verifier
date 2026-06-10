@@ -30,9 +30,14 @@ Parameters:
     Default: ''
     NoEcho: true
     Description: 'API key for the AI vision provider (set via env.local.json locally, or Secrets Manager in deploy)'
+  AcmCertificateArn:
+    Type: String
+    Default: ''
+    Description: 'ACM certificate (us-east-1) covering colaready.com and www.colaready.com for the CloudFront distribution. Leave empty to use the default CloudFront certificate.'
 
 Conditions:
   HasFrontendBucket: !Not [!Equals [!Ref FrontendBucketName, '']]
+  HasCustomDomain: !Not [!Equals [!Ref AcmCertificateArn, '']]
 
 Globals:
   Function:
@@ -245,8 +250,17 @@ Resources:
         Enabled: true
         Comment: 'TTB Label Verifier frontend'
         DefaultRootObject: index.html
-        ViewerCertificate:
-          CloudFrontDefaultCertificate: true
+        Aliases: !If
+          - HasCustomDomain
+          - - colaready.com
+            - www.colaready.com
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
         HttpVersion: http2
         IPV6Enabled: true
         PriceClass: PriceClass_100
