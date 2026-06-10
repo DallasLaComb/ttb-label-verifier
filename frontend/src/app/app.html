@@ -95,6 +95,7 @@
   }
 
   .divider {
+    border: none;
     width: 1px;
     background: var(--red-to-pink-to-purple-vertical-gradient);
     margin-inline: 0.5rem;
@@ -180,6 +181,7 @@
       width: 100%;
       background: var(--red-to-pink-to-purple-horizontal-gradient);
       margin-block: 1.5rem;
+      border: none;
     }
   }
 </style>
@@ -235,7 +237,7 @@
       <h1>Hello, {{ title() }}</h1>
       <p>Congratulations! Your app is running. 🎉</p>
     </div>
-    <div class="divider" role="separator" aria-label="Divider"></div>
+    <hr class="divider" />
     <div class="right-side">
       <div class="pill-group">
         @for (item of [
