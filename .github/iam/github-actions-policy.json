@@ -18,7 +18,7 @@
         "cloudformation:ExecuteChangeSet",
         "cloudformation:DeleteChangeSet"
       ],
-      "Resource": "arn:aws:cloudformation:*:737780202102:stack/ttb-label-verifier-*/*"
+      "Resource": "arn:aws:cloudformation:*:737780202102:stack/ttb-label-verifier*/*"
     },
     {
       "Sid": "CloudFormationTransform",
