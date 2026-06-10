@@ -1,4 +1,4 @@
-# ColaCheck
+# ColaReady
 
 AI-powered prototype for verifying alcohol beverage label artwork against COLA application data. Built for the Treasury take-home assessment — see [INSTRUCTIONS.md](INSTRUCTIONS.md) for the original project brief.
 
