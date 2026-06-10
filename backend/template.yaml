@@ -51,10 +51,50 @@ Globals:
         ALLOWED_ORIGINS: !Join [',', !Ref AllowedOrigins]
 
 Resources:
+  # ── Auth (Cognito) ──
+  # Single admin-created user, no self sign-up. Retained across stack updates
+  # so the manually-created account survives redeploys.
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      MfaConfiguration: 'OFF'
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-frontend'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+
   LabelVerifierHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: $default
+      Auth:
+        DefaultAuthorizer: CognitoJwtAuthorizer
+        Authorizers:
+          CognitoJwtAuthorizer:
+            JwtConfiguration:
+              issuer: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+              audience:
+                - !Ref UserPoolClient
+            IdentitySource: '$request.header.Authorization'
       CorsConfiguration:
         AllowOrigins: !Ref AllowedOrigins
         AllowHeaders:
@@ -87,6 +127,8 @@ Resources:
             Path: /health
             Method: GET
             ApiId: !Ref LabelVerifierHttpApi
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -256,6 +298,14 @@ Outputs:
   ApiUrl:
     Description: Base URL of the deployed API
     Value: !Sub 'https://${LabelVerifierHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+
+  UserPoolId:
+    Description: Cognito User Pool ID for the frontend login
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool app client ID for the frontend login
+    Value: !Ref UserPoolClient
 
   FrontendBucketName:
     Condition: HasFrontendBucket

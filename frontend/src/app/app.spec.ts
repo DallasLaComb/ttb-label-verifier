@@ -4,12 +4,26 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
 import { routes } from './app.routes';
+import { AuthService } from './core/auth/auth';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter(routes),
+        {
+          provide: AuthService,
+          useValue: {
+            isAuthenticatedSignal: () => true,
+            initialize: () => {},
+            getIdToken: () => null,
+            logout: () => {},
+          },
+        },
+      ],
     }).compileComponents();
   });
 
@@ -26,7 +40,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('nav')?.textContent).toContain('ColaCheck');
+    expect(compiled.querySelector('nav')?.textContent).toContain('ColaReady');
     expect(compiled.querySelector('h1')?.textContent).toContain('Verify a Label');
   });
 });

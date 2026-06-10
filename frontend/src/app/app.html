@@ -1,14 +1,18 @@
 <div class="flex flex-col min-h-dvh">
-  <app-navbar />
+  @if (!isLoginPage()) {
+    <app-navbar class="print:hidden" />
 
-  <div class="bg-ttb-gold/15 border-b border-ttb-gold/30 px-4 py-2 text-center text-xs text-ttb-navy">
-    Prototype pre-submission check only — not an official TTB system and not affiliated with
-    or endorsed by the Alcohol and Tobacco Tax and Trade Bureau.
-  </div>
+    <div class="print:hidden bg-ttb-gold/15 border-b border-ttb-gold/30 px-4 py-2 text-center text-xs text-ttb-navy">
+      Prototype pre-submission check only — not an official TTB system and not affiliated with
+      or endorsed by the Alcohol and Tobacco Tax and Trade Bureau.
+    </div>
+  }
 
   <div class="flex-1">
     <router-outlet />
   </div>
 
-  <app-footer />
+  @if (!isLoginPage()) {
+    <app-footer class="print:hidden" />
+  }
 </div>

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from '../../core/auth/auth';
 
 @Component({
   selector: 'app-navbar',
@@ -10,11 +11,22 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 export class Navbar {
   protected readonly menuOpen = signal(false);
 
+  constructor(
+    private readonly authService: AuthService,
+    private readonly router: Router,
+  ) {}
+
   protected toggleMenu(): void {
     this.menuOpen.update((open) => !open);
   }
 
   protected closeMenu(): void {
     this.menuOpen.set(false);
+  }
+
+  protected logout(): void {
+    this.closeMenu();
+    this.authService.logout();
+    this.router.navigateByUrl('/login');
   }
 }

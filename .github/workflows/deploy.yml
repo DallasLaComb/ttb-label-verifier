@@ -143,6 +143,8 @@ jobs:
           echo "bucket_name=$(get FrontendBucketName)" >> "$GITHUB_OUTPUT"
           echo "distribution_id=$(get DistributionId)" >> "$GITHUB_OUTPUT"
           echo "distribution_domain=$(get DistributionDomainName)" >> "$GITHUB_OUTPUT"
+          echo "user_pool_id=$(get UserPoolId)" >> "$GITHUB_OUTPUT"
+          echo "user_pool_client_id=$(get UserPoolClientId)" >> "$GITHUB_OUTPUT"
 
       - name: Deploy SAM stack (pass 2 - set CORS to CloudFront domain)
         run: |
@@ -173,9 +175,13 @@ jobs:
       - name: Replace environment placeholders
         env:
           API_BASE_URL: ${{ steps.stack-outputs.outputs.api_url }}
+          COGNITO_USER_POOL_ID: ${{ steps.stack-outputs.outputs.user_pool_id }}
+          COGNITO_CLIENT_ID: ${{ steps.stack-outputs.outputs.user_pool_client_id }}
         run: |
           find frontend/dist/frontend/browser \( -name "*.html" -o -name "*.js" -o -name "*.txt" \) -type f -exec sed -i \
             -e "s|__API_BASE_URL__|${API_BASE_URL}|g" \
+            -e "s|__COGNITO_USER_POOL_ID__|${COGNITO_USER_POOL_ID}|g" \
+            -e "s|__COGNITO_CLIENT_ID__|${COGNITO_CLIENT_ID}|g" \
             {} +
 
       - name: Sync frontend to S3
